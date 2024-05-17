@@ -1,59 +1,75 @@
+
 pipeline {
     agent any
-    
-    environment {
-        CODE_DIRECTORY = "/direct/codefolder/access/"
-        TESTING_ENV = "testing_my_environment"
-        PROD_ENV = "New_Prod_Environment"
-    }
-    
+
     stages {
-        stage('Fetching Source Code') {
+        stage('Build') {
             steps {
-                echo "Fetching source code from: ${env.CODE_DIRECTORY}"
-                echo "Compiling the code and creating artifacts"
+                script {
+                    // Building the code using Maven
+                    sh 'mvn clean package'
+                }
             }
         }
-        
-        stage('Automated Testing') {
+        stage('Unit and Integration Tests') {
             steps {
-                echo "Executing automated unit tests"
-                echo "Running integration tests"
+                script {
+                    // Running unit and integration tests
+                    sh 'mvn test'
+                }
             }
         }
-        
-        stage('Code Analysis and Quality Check') {
+        stage('Code Analysis') {
             steps {
-                echo "Performing code quality analysis"
+                script {
+                    // Code analysis using SonarQube
+                    sh 'mvn sonar:sonar'
+                }
             }
         }
-        
-        stage('Deploy to Testing Environment') {
+        stage('Security Scan') {
             steps {
-                echo "Deploying the application to ${env.TESTING_ENV}"
+                script {
+                    // Security scan using OWASP Dependency-Check
+                    sh 'mvn dependency-check:check'
+                }
             }
         }
-        
-        stage('Manual Approval') {
+        stage('Deploy to Staging') {
             steps {
-                echo "Waiting for manual approval..."
-                sleep(time: 15, unit: 'SECONDS')
+                script {
+                    // Deploying to staging server
+                    sh 'aws deploy create-deployment ...' // Adjust with actual deployment command
+                }
             }
         }
-        
-        stage('Deploy to Production Environment') {
+        stage('Integration Tests on Staging') {
             steps {
-                echo "Deploying the code to ${env.PROD_ENV}"
+                script {
+                    // Running integration tests on staging
+                    sh 'run-integration-tests.sh'
+                }
+            }
+        }
+        stage('Deploy to Production') {
+            steps {
+                script {
+                    // Deploying to production server
+                    sh 'aws deploy create-deployment ...' // Adjust with actual deployment command
+                }
             }
         }
     }
-    
-    
+
     post {
-        success {
-            mail to: "ajay161098@gmail.com",
-            subject: "Build Status Email",
-            body: "Build successful."
+        always {
+            emailext (
+                to: 'developer@example.com',
+                subject: "Pipeline ${currentBuild.fullDisplayName}",
+                body: """<p>Build ${currentBuild.fullDisplayName} completed</p>
+                         <p>Status: ${currentBuild.result}</p>""",
+                attachLog: true
+            )
         }
     }
 }
